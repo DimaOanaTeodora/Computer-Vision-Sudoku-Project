@@ -5,6 +5,7 @@
 opencv-python==4.5.4.60
 numpy==1.21.4
 scipy==1.7.2
+imutils==0.5.4
 ```
 
 ## Instructiuni de compilare
