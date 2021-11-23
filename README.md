@@ -5,10 +5,30 @@ Computer Vision third year uni course
 
 ### Deadline 
 - ```1 dec 2021, 23:59```
-  - [incarcare solutii aici](https://tinyurl.com/CAVA-2021-TEMA1-SOLUTII)
+  - [incarcare cod(proiect) aici](https://tinyurl.com/CAVA-2021-TEMA1-SOLUTII)
 - ```5 dec 2021, 23:59```
-  - [datele de test aici](https://tinyurl.com/CAVA-2021-TEMA1)
-  - [de incarcat arhiva zip aici](https://tinyurl.com/CAVA-2021-TEMA1-REZULTATE)
+  - [datele de test se iau de aici](https://tinyurl.com/CAVA-2021-TEMA1)
+  - [de incarcat arhiva zip cu solutiile aici](https://tinyurl.com/CAVA-2021-TEMA1-REZULTATE)
+### README.md
+Proiectul trebuie sa includa si un fisier ```README.md``` cu urmatoarele:
+
+- librariile de care este nevoie pentru rularea proiectului
+```numpy==1.15.4
+opencv_python==4.1.1.26
+scikit_image==0.15.0
+tensorflow_gpu==1.12.0
+Pillow==7.0.0
+scikit_learn==0.22.1
+skimage==0.0
+tensorflow==2.1.0
+```
+- cum sa fie rulat fiecare fisier pentru ficare task
+```
+Task 1: 
+script: task_1.py
+function: run_task1(input_folder_name), where input_folder_name is the path to the folder containing the images for task1
+output: the output file is results/task1.txt
+```
 
 ### Scop
 Implementarea unui sistem automat de extragere a informatiei vizuale din imagini ce contin careuri Sudoku de tip Clasic sau Jigsaw.
@@ -18,13 +38,12 @@ Implementarea unui sistem automat de extragere a informatiei vizuale din imagini
 - latime: 3024 px
 
 ### Arhiva materiale [here](https://tinyurl.com/CAVA-2021-TEMA1)
-- 2 directoare: antrenare, ```testare```, evaluare
 - ```testare``` - disponibile dupa termenul limita de trimitere a codului
 - ```antrenare``` - ```clasic ```si ```jigsaw``` 
 - ```evaluare``` - indica cum sa scriem codul pt faza de evaluare pe datele de test
-  - ```fake_test``` exemplifica cum vor arata datele de testare (structura ca la antrenare) si similar cu directorul de ```test``` in care vor fi imaginile de testare
-  - ```fisiere_solutie``` exemplifica formatul fisierelor de trimis in faza a doua (director ```Alexe_Bogdan_331```)
-  - ```cod_evaluare``` cod folosit pentru evaluarea automata a rezultatelor 9 --- trebuie sa ne asiguram ca acest cod ruleaza pe fisierele noastre 
+  - ```fake_test``` - exemplifica cum vor arata datele de testare (structura ca la antrenare) si similar cu directorul de ```test``` in care vor fi imaginile de testare
+  - ```fisiere_solutie``` - exemplifica formatul fisierelor de trimis in faza a doua (director ```Alexe_Bogdan_331```)
+  - ```cod_evaluare``` - cod folosit pentru evaluarea automata a rezultatelor --- trebuie sa ne asiguram ca acest cod ruleaza pe fisierele noastre 
 
 # Task 1 - Sudoku Clasic
 - de determinat daca fiecare celula contine sau nu o cifra
