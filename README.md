@@ -1,5 +1,5 @@
 # Computer Vision Sudoku Project
-
+```python 3.8.10 ```
 ## Librarii utilizate
 
 
