@@ -38,18 +38,18 @@ Implementarea unui sistem automat de extragere a informatiei vizuale din imagini
 - latime: 3024 px
 
 ### Arhiva materiale [here](https://tinyurl.com/CAVA-2021-TEMA1)
-- ```testare``` - disponibile dupa termenul limita de trimitere a codului
-- ```antrenare``` - ```clasic ```si ```jigsaw``` 
-- ```evaluare``` - indica cum sa scriem codul pt faza de evaluare pe datele de test
+- ```testare``` - disponibile *dupa termenul limita de trimitere a codului*
+- ```antrenare``` - ```classic ``` si ```jigsaw``` 
+- ```evaluare``` - indica *cum sa scriem codul* pentru faza de evaluare pe datele de test:
   - ```fake_test``` - exemplifica cum vor arata datele de testare (structura ca la antrenare) si similar cu directorul de ```test``` in care vor fi imaginile de testare
   - ```fisiere_solutie``` - exemplifica formatul fisierelor de trimis in faza a doua (director ```Alexe_Bogdan_331```)
-  - ```cod_evaluare``` - cod folosit pentru evaluarea automata a rezultatelor --- trebuie sa ne asiguram ca acest cod ruleaza pe fisierele noastre 
+  - ```cod_evaluare``` - cod folosit pentru evaluarea automata a rezultatelor --- **trebuie sa ne asiguram ca acest cod ruleaza pe fisierele noastre!** 
 
 # Task 1 - Sudoku Clasic
 - de determinat daca fiecare celula contine sau nu o cifra
 - celulele libere cu litera ```o``` mic
 - celulele ocupate cu litera ```x``` mic
-- datele de antrenare: ```20``` de imagini (centrare si aliniate cu axele Ox, Oy)
+- datele de antrenare: ```20``` de imagini
 
 ![image](https://user-images.githubusercontent.com/61749814/142925428-4aa097c0-3062-417c-ad9e-b6233479e055.png)
 
