@@ -39,7 +39,7 @@ Implementarea unui sistem automat de extragere a informatiei vizuale din imagini
 
 ### Arhiva materiale [here](https://tinyurl.com/CAVA-2021-TEMA1)
 - ```testare``` - disponibile *dupa termenul limita de trimitere a codului*
-- ```antrenare``` - ```classic ``` si ```jigsaw``` 
+- ```antrenare``` - ```clasic ``` si ```jigsaw``` 
 - ```evaluare``` - indica *cum sa scriem codul* pentru faza de evaluare pe datele de test:
   - ```fake_test``` - exemplifica cum vor arata datele de testare (structura ca la antrenare) si similar cu directorul de ```test``` in care vor fi imaginile de testare
   - ```fisiere_solutie``` - exemplifica formatul fisierelor de trimis in faza a doua (director ```Alexe_Bogdan_331```)
