@@ -3,18 +3,17 @@ import numpy as np
 import imutils 
 import os 
 
-A_INPUT_FOLDER_PATH =  ".\\antrenare\\clasic\\"
-A_EVALUATE_FOLDER_PATH = ".\\antrenare\\results\\clasic\\"
+A_INPUT_FOLDER_PATH =  ".\\antrenare\\jigsaw\\"
+A_EVALUATE_FOLDER_PATH = ".\\antrenare\\results\\jigsaw\\"
 A_OUTPUT_NAME_PATTERN = "_gt.txt" # 01 # 10 .... 
 
-OUTPUT_FOLDER_PATH  = ".\\Dima_Oana_341\\clasic\\"
+OUTPUT_FOLDER_PATH  = ".\\Dima_Oana_341\\jigsaw\\"
 
 # test images for 5 dec
-T_INPUT_FOLDER_PATH = ".\\testare\\clasic\\"
-T_OUTPUT_NAME_PATTERN = "_predicted.txt" # 01 # 10 ....
+T_INPUT_FOLDER_PATH = ".\\testare\\jigsaw\\"
+T_OUTPUT_NAME_PATTERN = "_predicted.txt" # 01 # 10 .... 
 
-
-class SudokuClassic:
+class SudokuJigsaw:
     def __init__(self, image_path):
         self.image = cv.imread(image_path)
         self.thresholded_image = None
@@ -22,6 +21,21 @@ class SudokuClassic:
         self.sudoku_contour = None
         self.sudoku_predicted = []
         self.extracted_sudoku = None
+        self.sudoku_without_thin_lines = None
+        self.zones_for_cells = []
+        self.threshold = None
+        self.COLORS = {
+            '1': (0, 0, 0), # black 
+            '2': (100, 100, 100), # gray
+            '3': (255, 0, 0), # red
+            '4': (0, 0, 255), # blue 
+            '5': (0, 255, 0), # green
+            '6': (0, 0, 100), # dark blue
+            '7': (0, 255, 255), # light blue
+            '8': (100, 0, 100), # purple
+            '9': (255, 255, 0), # yellow
+            '10': (255, 255, 255) # white -> debug
+        }
 
     @staticmethod
     def show_an_image(window_name, image):
@@ -42,15 +56,16 @@ class SudokuClassic:
         save the solution 
         '''
         f =  open(output_path, "w+")
-        for i in range(9):
-            line = self.sudoku_predicted[i]
-            for cell in line:
-                f.write(cell)
-            if i < 8: 
-                f.write('\n')
+        if len(self.sudoku_predicted) == 9: 
+            for i in range(9):
+                line = self.sudoku_predicted[i]
+                for cell in line:
+                    f.write(cell)
+                if i < 8: 
+                    f.write('\n')
         f.close()
 
-    def process_image(self):
+    def process_raw_image(self):
         '''
         convert the image to black and white
         remove the noise for a better recognition of the contours
@@ -67,11 +82,59 @@ class SudokuClassic:
         self.thresholded_image = cv.bitwise_not(src=thresholded)
 
         # Debugging
-        # self.show_an_image("process_image", self.thresholded_image)
+        # self.show_an_image("process_raw_image", self.thresholded_image)
 
-    def get_contours(self):
+    def process_extracted_sudoku(self):
         '''
-        detect the contours
+        convert the image to black and white
+        remove the noise for a better recognition of the contours
+        remove the gradient
+        '''
+        grayed = cv.cvtColor(src=self.extracted_sudoku, code=cv.COLOR_BGR2GRAY)
+        blurred = cv.GaussianBlur(src=grayed,
+                                  ksize=(5, 5),
+                                  sigmaX=3)
+        _, self.threshold = cv.threshold(src=blurred,
+                                        thresh=80,
+                                        maxval=255, 
+                                        type=cv.THRESH_BINARY_INV | cv.THRESH_OTSU)
+        # Debugging
+        # self.show_an_image("process_extracted_sudoku", self.threshold)
+    
+    def remove_thin_lines(self):
+        '''
+        erode then dilate the image
+        remove thin lines and keep the thick ones
+        convert black to white and white to black 
+        '''
+       
+        erode_kernel = np.ones(shape=(19, 19), dtype=np.uint8)    
+        # MORPH_OPEN: erode then dilate 
+        self.sudoku_without_thin_lines = cv.morphologyEx(src=self.threshold,
+                                        op=cv.MORPH_OPEN,
+                                        kernel=erode_kernel)
+        self.sudoku_without_thin_lines = cv.bitwise_not(self.sudoku_without_thin_lines)
+
+        # Debugging
+        # self.show_an_image("without thin lines", self.sudoku_without_thin_lines)
+
+    def draw_extra_border(self):
+        # 30px margin around the table for safety
+        border = 30
+        top_left = (border // 2, border // 2)
+        bottom_right = (self.sudoku_without_thin_lines.shape[1] - border // 2,
+                        self.sudoku_without_thin_lines.shape[0] - border // 2)
+        self.sudoku_without_thin_lines = cv.rectangle(img=self.sudoku_without_thin_lines,
+                                                     pt1=top_left,
+                                                     pt2=bottom_right,
+                                                     color=(0, 0, 0), # black
+                                                     thickness=border)
+        # Debugging
+        # self.show_an_image("with extra border", self.sudoku_without_thin_lines)
+    
+    def get_contours_f1(self):
+        '''
+        detect the contours for tresholded raw image
         save them as an np.array of 2 points [x,y] (the begin point and the end point)
         '''
         contours_found = cv.findContours(image=self.thresholded_image,
@@ -79,10 +142,20 @@ class SudokuClassic:
                                         method=cv.CHAIN_APPROX_SIMPLE)
         self.contours = imutils.grab_contours(cnts=contours_found)
         self.contours = sorted(self.contours, key=cv.contourArea, reverse=True)
-
-    def iterate_through_contours(self):
+    
+    def get_contours_f2(self):
         '''
-        the get_contours() function can detect also the numbers in the sudoku
+        detect the contours for the processed imagine (without thin lines)
+        save them as an np.array of 2 points [x,y] (the begin point and the end point)
+        '''
+        contours = cv.findContours(self.sudoku_without_thin_lines.copy(), cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
+        contours = imutils.grab_contours(contours)
+        contours = sorted(contours, key=lambda cnt: ((cv.boundingRect(cnt)[1] // 10) * 10) * self.sudoku_without_thin_lines.shape[1] + cv.boundingRect(cnt)[0])
+        return contours
+
+    def iterate_through_contours_f1(self):
+        '''
+        the get_contours_f1() function can detect also the numbers in the sudoku
         I need a detail rate for getting just the squares
         '''
         for contour in self.contours:
@@ -93,14 +166,14 @@ class SudokuClassic:
             resulted_details = cv.approxPolyDP(curve=contour,
                                                epsilon=epsilon,
                                                closed=True)
-
+            
             if len(resulted_details) == 4:
                 # square dimensions
                 _, _, width, height = cv.boundingRect(contour)
                 square_surface = width * height
 
                 # print("Square surface: ", square_surface)
-
+    
                 if square_surface > 500000:
                     # I find a sudoku 
                     # save the sudoku contour 
@@ -110,12 +183,50 @@ class SudokuClassic:
                     # cv.drawContours(image=self.image, 
                     #                 contours=[resulted_details],
                     #                 contourIdx=-1,
-                    #                 color=(0, 0, 255),  #red
-                    #                 thickness=4)
+                    #                 color=colors[str(number + 1)],  #red
+                    #                 thickness=cv.FILLED)
                     # self.show_an_image("Contours: ", self.image)
 
                     break
     
+    def iterate_through_contours_f2(self, contours):
+            '''
+            the get_contours_f2() function detect the contours of the zones
+            I need a small detail rate for getting all the details
+            '''
+            # Back to RGB for coloring
+            self.sudoku_without_thin_lines = cv.cvtColor(src=self.sudoku_without_thin_lines,
+                                                     code=cv.COLOR_GRAY2RGB)
+
+            for i in range(len(contours)):
+                contour = contours[i]
+                
+                detail_rate = 0.00002
+
+                epsilon = detail_rate * cv.arcLength(curve=contour, closed=True)
+                resulted_details = cv.approxPolyDP(curve=contour,
+                                                   epsilon=epsilon,
+                                                   closed=True)
+
+                # color a zone
+                cv.drawContours(image=self.sudoku_without_thin_lines, 
+                                contours=[resulted_details], 
+                                contourIdx=-1, 
+                                color=self.COLORS[str(i + 1)], 
+                                thickness=cv.FILLED)
+
+                # # Debug
+                # # Get center of contour
+                # try:
+                #     M = cv.moments(c)
+                #     cX = int(M["m10"] / M["m00"])
+                #     cY = int(M["m01"] / M["m00"])
+                # except:
+                #     print('Float division by zero') 
+
+                # # Put contour number
+                # cv.putText(self.sudoku_without_thin_lines.copy(), str(i + 1), (cX, cY), cv.FONT_HERSHEY_SIMPLEX, 7, (0, 255, 0), 20)
+
     def get_cells_coordinates(self, cell_width, cell_height):
         '''
         calculates the upper left corner for each cell
@@ -178,18 +289,51 @@ class SudokuClassic:
 
         return cells_with_numbers
 
+    def extract_zones_for_cells(self, cells, cell_width, cell_height):
+        '''
+        Save the colored zone for each cell in self.zones_for_cells
+        '''
+        for i in range(len(cells)):
+                cell = cells[i]
+                padding = 100 # remove possible contours
+
+                # extract the cell
+                cell = self.sudoku_without_thin_lines[cell[1] + padding:cell[1] + cell_height - padding,
+                                                      cell[0] + padding:cell[0] + cell_width - padding].copy()
+                
+                # calculate the average color for the cell 
+                # for the recognition of the zone
+                average_color = cv.mean(cell)[:3]
+
+                for zone_number in self.COLORS.keys():
+                    color = self.COLORS[zone_number]
+                    # calculate the errors
+                    R = abs(average_color[0] - color[0])
+                    G = abs(average_color[1] - color[1])
+                    B = abs(average_color[2] - color[2])
+
+                    # small errors < 5
+                    if R < 5 and G < 5 and B < 5:
+                        self.zones_for_cells.append(zone_number)
+                        break
+
     def extract(self):
         '''
         calculate the corners of the sudoku matrix
         cut the image with the sudoku
         transforms a possible image rotated by translation
         process the cells
+        extract the contours of the zones
+        colorate the zones
         extract the cells which contain numbers
+        extract the zones for cells
         '''
         if self.sudoku_predicted is None:
             raise Exception("I can't process this image!")
+        elif self.sudoku_contour is None:
+            print("Sudoku contour is none")
         else:
-
+            
             # 4 points (x,y)
             corners = np.zeros((4, 2), dtype='float32')
 
@@ -241,11 +385,26 @@ class SudokuClassic:
             # Debug
             # self.show_an_image("The cut", extracted_sudoku)
 
+            self.process_extracted_sudoku()
+
+            self.remove_thin_lines()
+
+            self.draw_extra_border()
+
+            contours = self.get_contours_f2()
+        
+            self.iterate_through_contours_f2(contours)
+
+            # Debug
+            # self.show_an_image("Colored zones", self.sudoku_without_thin_lines)
+
             # calculate the dimensions for each cell (9x9 matrix)
             cell_width = self.extracted_sudoku.shape[1] // 9
             cell_height = self.extracted_sudoku.shape[0] // 9
 
             cells = self.get_cells_coordinates(cell_width, cell_height)
+
+            self.extract_zones_for_cells(cells, cell_width, cell_height)
 
             cells_with_numbers = self.get_cells_with_numbers(cells,
                                                              self.extracted_sudoku,
@@ -263,15 +422,15 @@ class SudokuClassic:
             l = []
             for j in range(9):
                 if cell_number in cells_with_numbers:
-                    l.append('x')
+                    l.append(self.zones_for_cells[cell_number] + 'x')
                 else:
-                    l.append('o')
+                    l.append(self.zones_for_cells[cell_number] + 'o')
                 cell_number +=1
             self.sudoku_predicted.append(l)
 
 def find_differences(path1, path2):
     errors = 0
-    for i in range(1, 21):
+    for i in range(1, 41):
         if i < 10:
             p1 = path1 + "0" + str(i) + "_gt.txt"
             p2 = path2 + "0" + str(i) + "_gt.txt"
@@ -285,6 +444,12 @@ def find_differences(path1, path2):
         for i in range (9):
             l1 = f1.readline()
             l2 = f2.readline()
+
+            # Debug
+            if len(l1)==0 or len(l2)==0:
+                print("fisier null")
+                break
+            
             for j in range (9):
                 if l1[j] != l2[j]:
                     mistakes +=1
@@ -296,7 +461,7 @@ def apply_for_all(output_folder_path, input_folder_path, name_pattern):
     '''
     Iterate through the folder and process every image
     '''
-    for i in range (1, 21):
+    for i in range (1, 41):
         if i < 10:
             output_path = output_folder_path + "0" + str(i) + name_pattern
             image_path =  input_folder_path + "0" + str(i) + ".jpg"
@@ -304,10 +469,13 @@ def apply_for_all(output_folder_path, input_folder_path, name_pattern):
             output_path = output_folder_path + str(i) +  name_pattern
             image_path =  input_folder_path + str(i) + ".jpg"
 
-        new_sudoku_classic = SudokuClassic(image_path)
-        new_sudoku_classic.process_image()
-        new_sudoku_classic.get_contours()
-        new_sudoku_classic.iterate_through_contours()
+        # Debug
+        # print("Image ", i, ":")
+
+        new_sudoku_classic = SudokuJigsaw(image_path)
+        new_sudoku_classic.process_raw_image()
+        new_sudoku_classic.get_contours_f1()
+        new_sudoku_classic.iterate_through_contours_f1()
         new_sudoku_classic.extract()
         new_sudoku_classic.save_to_txt(output_path)
 
@@ -321,5 +489,6 @@ if __name__ == "__main__":
     
     errors = find_differences(A_EVALUATE_FOLDER_PATH, OUTPUT_FOLDER_PATH)
     print("Au fost " + str(errors) + " imagini prezise gresit")
-    
+
+   
     
