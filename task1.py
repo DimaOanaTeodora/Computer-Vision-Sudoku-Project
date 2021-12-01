@@ -342,8 +342,13 @@ if __name__ == "__main__":
     if not os.path.exists(OUTPUT_FOLDER_PATH):
         os.makedirs(OUTPUT_FOLDER_PATH)
 
+    # apply_for_all(OUTPUT_FOLDER_PATH,
+    #               A_INPUT_FOLDER_PATH,
+    #               T_OUTPUT_NAME_PATTERN)
+    
+    # 5 dec
     apply_for_all(OUTPUT_FOLDER_PATH,
-                  A_INPUT_FOLDER_PATH,
+                  T_INPUT_FOLDER_PATH,
                   T_OUTPUT_NAME_PATTERN)
     
     # errors = find_differences(A_EVALUATE_FOLDER_PATH,
