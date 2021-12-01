@@ -13,7 +13,6 @@ OUTPUT_FOLDER_PATH  = ".\\Dima_Oana_341\\clasic\\"
 T_INPUT_FOLDER_PATH = ".\\testare\\clasic\\"
 T_OUTPUT_NAME_PATTERN = "_predicted.txt" # 01 # 10 ....
 
-
 class SudokuClassic:
     def __init__(self, image_path):
         self.image = cv.imread(image_path)
@@ -52,10 +51,23 @@ class SudokuClassic:
 
     def process_image(self):
         '''
+        40px border for safety - the sudoko contour incomplete case
         convert the image to black and white
         remove the noise for a better recognition of the contours
         I need the contours to be white to detect them
         '''
+        color = self.image[20,20]
+        border_color = (int(color[0]), int(color[1]), int(color[2]))
+        border = 40
+        top_left = (border // 2, border // 2)
+        bottom_right = (self.image.shape[1] - border // 2,
+                        self.image.shape[0] - border // 2)
+        self.image = cv.rectangle(img=self.image,
+                                 pt1=top_left,
+                                 pt2=bottom_right,
+                                 color=border_color, 
+                                 thickness=border)
+
         grayed = cv.cvtColor(src=self.image, code=cv.COLOR_BGR2GRAY)
         blurred = cv.GaussianBlur(src=grayed, ksize=(15, 15), sigmaX= 6)
         thresholded = cv.adaptiveThreshold(src=blurred, 
@@ -187,9 +199,10 @@ class SudokuClassic:
         extract the cells which contain numbers
         '''
         if self.sudoku_predicted is None:
-            raise Exception("I can't process this image!")
+            raise Exception("Sufoku predictec is none")
+        elif self.sudoku_contour is None:
+            print("Sudoku contour is none")
         else:
-
             # 4 points (x,y)
             corners = np.zeros((4, 2), dtype='float32')
 
@@ -269,27 +282,41 @@ class SudokuClassic:
                 cell_number +=1
             self.sudoku_predicted.append(l)
 
-def find_differences(path1, path2):
+def find_differences(path1, path2, name_pattern):
     errors = 0
+    error_files = []
     for i in range(1, 21):
         if i < 10:
             p1 = path1 + "0" + str(i) + "_gt.txt"
-            p2 = path2 + "0" + str(i) + "_gt.txt"
+            p2 = path2 + "0" + str(i) + name_pattern
         else:
             p1 = path1 + str(i) + "_gt.txt"
-            p2 = path2 + str(i) + "_gt.txt"
+            p2 = path2 + str(i) + name_pattern
 
         f1 = open(p1, "r")
         f2 = open(p2, "r")
         mistakes = 0
-        for i in range (9):
+        for x in range (9):
             l1 = f1.readline()
             l2 = f2.readline()
+
+            # Debug
+            if len(l1)==0 or len(l2)==0:
+                print("Error incomplete/empty file")
+                break
+            
             for j in range (9):
                 if l1[j] != l2[j]:
                     mistakes +=1
+                    if i not in error_files:
+                        error_files.append(i)
+                    break
         if mistakes != 0:
             errors +=1
+
+    for file in error_files:
+        print("File number ", file, " has mistakes")
+
     return errors 
 
 def apply_for_all(output_folder_path, input_folder_path, name_pattern):
@@ -317,9 +344,11 @@ if __name__ == "__main__":
 
     apply_for_all(OUTPUT_FOLDER_PATH,
                   A_INPUT_FOLDER_PATH,
-                  A_OUTPUT_NAME_PATTERN)
+                  T_OUTPUT_NAME_PATTERN)
     
-    errors = find_differences(A_EVALUATE_FOLDER_PATH, OUTPUT_FOLDER_PATH)
-    print("Au fost " + str(errors) + " imagini prezise gresit")
+    # errors = find_differences(A_EVALUATE_FOLDER_PATH,
+    #                           OUTPUT_FOLDER_PATH,
+    #                           T_OUTPUT_NAME_PATTERN)
+    # print("There was " + str(errors) + " wrong files")
     
     

@@ -25,6 +25,7 @@ class SudokuJigsaw:
         self.zones_for_cells = []
         self.threshold = None
         self.COLORS = {
+            '0': (255, 255, 255), # white because the initial canva is fill with white
             '1': (0, 0, 0), # black 
             '2': (100, 100, 100), # gray
             '3': (255, 0, 0), # red
@@ -33,8 +34,7 @@ class SudokuJigsaw:
             '6': (0, 0, 100), # dark blue
             '7': (0, 255, 255), # light blue
             '8': (100, 0, 100), # purple
-            '9': (255, 255, 0), # yellow
-            '10': (255, 255, 255) # white -> debug
+            '9': (255, 255, 0) # yellow
         }
 
     @staticmethod
@@ -67,10 +67,23 @@ class SudokuJigsaw:
 
     def process_raw_image(self):
         '''
+        40px border for safety - the sudoko contour incomplete case
         convert the image to black and white
         remove the noise for a better recognition of the contours
         I need the contours to be white to detect them
         '''
+        color = self.image[20,20]
+        border_color = (int(color[0]), int(color[1]), int(color[2]))
+        border = 40
+        top_left = (border // 2, border // 2)
+        bottom_right = (self.image.shape[1] - border // 2,
+                        self.image.shape[0] - border // 2)
+        self.image = cv.rectangle(img=self.image,
+                                 pt1=top_left,
+                                 pt2=bottom_right,
+                                 color=border_color, 
+                                 thickness=border)
+
         grayed = cv.cvtColor(src=self.image, code=cv.COLOR_BGR2GRAY)
         blurred = cv.GaussianBlur(src=grayed, ksize=(15, 15), sigmaX= 6)
         thresholded = cv.adaptiveThreshold(src=blurred, 
@@ -119,7 +132,9 @@ class SudokuJigsaw:
         # self.show_an_image("without thin lines", self.sudoku_without_thin_lines)
 
     def draw_extra_border(self):
-        # 30px margin around the table for safety
+        '''
+        30px margin around the table for safety
+        '''
         border = 30
         top_left = (border // 2, border // 2)
         bottom_right = (self.sudoku_without_thin_lines.shape[1] - border // 2,
@@ -148,9 +163,11 @@ class SudokuJigsaw:
         detect the contours for the processed imagine (without thin lines)
         save them as an np.array of 2 points [x,y] (the begin point and the end point)
         '''
-        contours = cv.findContours(self.sudoku_without_thin_lines.copy(), cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
+        contours = cv.findContours(image=self.sudoku_without_thin_lines,
+                                   mode=cv.RETR_EXTERNAL,
+                                   method=cv.CHAIN_APPROX_SIMPLE)
         contours = imutils.grab_contours(contours)
-        contours = sorted(contours, key=lambda cnt: ((cv.boundingRect(cnt)[1] // 10) * 10) * self.sudoku_without_thin_lines.shape[1] + cv.boundingRect(cnt)[0])
+
         return contours
 
     def iterate_through_contours_f1(self):
@@ -197,36 +214,26 @@ class SudokuJigsaw:
             # Back to RGB for coloring
             self.sudoku_without_thin_lines = cv.cvtColor(src=self.sudoku_without_thin_lines,
                                                      code=cv.COLOR_GRAY2RGB)
-
             for i in range(len(contours)):
                 contour = contours[i]
                 
                 detail_rate = 0.00002
-
                 epsilon = detail_rate * cv.arcLength(curve=contour, closed=True)
+
                 resulted_details = cv.approxPolyDP(curve=contour,
                                                    epsilon=epsilon,
                                                    closed=True)
 
-                # color a zone
-                cv.drawContours(image=self.sudoku_without_thin_lines, 
-                                contours=[resulted_details], 
-                                contourIdx=-1, 
-                                color=self.COLORS[str(i + 1)], 
+                # white canva (just the black contours)
+                cv.drawContours(image=self.sudoku_without_thin_lines,
+                                contours=[resulted_details],
+                                contourIdx=-1,
+                                color=self.COLORS['0'],
                                 thickness=cv.FILLED)
-
-                # # Debug
-                # # Get center of contour
-                # try:
-                #     M = cv.moments(c)
-                #     cX = int(M["m10"] / M["m00"])
-                #     cY = int(M["m01"] / M["m00"])
-                # except:
-                #     print('Float division by zero') 
-
-                # # Put contour number
-                # cv.putText(self.sudoku_without_thin_lines.copy(), str(i + 1), (cX, cY), cv.FONT_HERSHEY_SIMPLEX, 7, (0, 255, 0), 20)
-
+            
+            # Debug 
+            # self.show_an_image("white zones", self.sudoku_without_thin_lines)
+               
     def get_cells_coordinates(self, cell_width, cell_height):
         '''
         calculates the upper left corner for each cell
@@ -289,6 +296,43 @@ class SudokuJigsaw:
 
         return cells_with_numbers
 
+    def remove_mistakes(self, cells_coordinates, contours, cell_width, cell_height):
+            '''
+            removing possible mistakes
+            test if a cell is in a zone
+            color of the cells => color of the zones
+            '''
+            current_zone = 1
+            for cell_coordinate in cells_coordinates:
+                
+                padding = 100
+                # extract cells (- padding)
+                cell = self.sudoku_without_thin_lines[cell_coordinate[1] + padding:cell_coordinate[1] + cell_height - padding,
+                                                      cell_coordinate[0] + padding:cell_coordinate[0] +  cell_width - padding].copy()
+                average_color = cv.mean(cell)[:3]
+
+                e1 = abs(self.COLORS['0'][0] - average_color[0])
+                e2 = abs(self.COLORS['0'][1] - average_color[1])
+                e3 = abs(self.COLORS['0'][2] - average_color[2])
+                
+                if e1 <= 5 and e2 <= 5 and e3 <=5:
+                    for contour in contours:
+                        cell_is_inside = cv.pointPolygonTest(contour=contour,
+                                                            pt=(cell_coordinate[0] + padding, cell_coordinate[1] + padding),
+                                                            measureDist=False)
+                        if cell_is_inside > 0:
+                            # color the zone 
+                            cv.drawContours(image=self.sudoku_without_thin_lines,
+                                            contours=[contour],
+                                            contourIdx=-1,
+                                            color=self.COLORS[str(current_zone)],
+                                            thickness=cv.FILLED)
+                            current_zone += 1
+                            break
+            
+            # Debug
+            # self.show_an_image("Colored (without mistakes)", self.sudoku_without_thin_lines)
+
     def extract_zones_for_cells(self, cells, cell_width, cell_height):
         '''
         Save the colored zone for each cell in self.zones_for_cells
@@ -308,12 +352,12 @@ class SudokuJigsaw:
                 for zone_number in self.COLORS.keys():
                     color = self.COLORS[zone_number]
                     # calculate the errors
-                    R = abs(average_color[0] - color[0])
-                    G = abs(average_color[1] - color[1])
-                    B = abs(average_color[2] - color[2])
+                    e1 = abs(color[0] - average_color[0])
+                    e2 = abs(color[1] - average_color[1])
+                    e3 = abs(color[2] - average_color[2])
 
                     # small errors < 5
-                    if R < 5 and G < 5 and B < 5:
+                    if e1 <= 5 and e2 <= 5 and e3 <= 5:
                         self.zones_for_cells.append(zone_number)
                         break
 
@@ -329,7 +373,7 @@ class SudokuJigsaw:
         extract the zones for cells
         '''
         if self.sudoku_predicted is None:
-            raise Exception("I can't process this image!")
+            raise Exception("Sufoku predictec is none")
         elif self.sudoku_contour is None:
             print("Sudoku contour is none")
         else:
@@ -366,17 +410,17 @@ class SudokuJigsaw:
             sudoku_width = max(int(top), int(bottom))
             sudoku_height = max(int(left), int(right))
 
-            sudoku_matrix_template = np.array([
-                                             [0, 0],
-                                             [sudoku_width - 1, 0],
-                                             [sudoku_width - 1, sudoku_height - 1],
-                                             [0, sudoku_height - 1]
-                                             ], 
-                                             dtype='float32')
+            sudoku_matrix = np.array([
+                                     [0, 0],
+                                     [sudoku_width - 1, 0],
+                                     [sudoku_width - 1, sudoku_height - 1],
+                                     [0, sudoku_height - 1]
+                                     ], 
+                                     dtype='float32')
             
             # transforms the possibly rotated image by translating the corners
             perspective_transform = cv.getPerspectiveTransform(src=corners,
-                                                               dst=sudoku_matrix_template)
+                                                               dst=sudoku_matrix)
             # self.image is RGB => extracted_sudoku is RGB
             self.extracted_sudoku = cv.warpPerspective(src=self.image,
                                                   M=perspective_transform,
@@ -395,14 +439,13 @@ class SudokuJigsaw:
         
             self.iterate_through_contours_f2(contours)
 
-            # Debug
-            # self.show_an_image("Colored zones", self.sudoku_without_thin_lines)
-
             # calculate the dimensions for each cell (9x9 matrix)
             cell_width = self.extracted_sudoku.shape[1] // 9
             cell_height = self.extracted_sudoku.shape[0] // 9
 
             cells = self.get_cells_coordinates(cell_width, cell_height)
+
+            self.remove_mistakes(cells, contours, cell_width, cell_height) 
 
             self.extract_zones_for_cells(cells, cell_width, cell_height)
 
@@ -428,33 +471,41 @@ class SudokuJigsaw:
                 cell_number +=1
             self.sudoku_predicted.append(l)
 
-def find_differences(path1, path2):
+def find_differences(path1, path2, name_pattern):
     errors = 0
+    error_files = []
     for i in range(1, 41):
         if i < 10:
             p1 = path1 + "0" + str(i) + "_gt.txt"
-            p2 = path2 + "0" + str(i) + "_gt.txt"
+            p2 = path2 + "0" + str(i) + name_pattern
         else:
             p1 = path1 + str(i) + "_gt.txt"
-            p2 = path2 + str(i) + "_gt.txt"
+            p2 = path2 + str(i) + name_pattern
 
         f1 = open(p1, "r")
         f2 = open(p2, "r")
         mistakes = 0
-        for i in range (9):
+        for x in range (9):
             l1 = f1.readline()
             l2 = f2.readline()
 
             # Debug
             if len(l1)==0 or len(l2)==0:
-                print("fisier null")
+                print("Error incomplete/empty file")
                 break
             
             for j in range (9):
                 if l1[j] != l2[j]:
                     mistakes +=1
+                    if i not in error_files:
+                        error_files.append(i)
+                    break
         if mistakes != 0:
             errors +=1
+
+    for file in error_files:
+        print("File number ", file, " has mistakes")
+
     return errors 
 
 def apply_for_all(output_folder_path, input_folder_path, name_pattern):
@@ -472,12 +523,12 @@ def apply_for_all(output_folder_path, input_folder_path, name_pattern):
         # Debug
         # print("Image ", i, ":")
 
-        new_sudoku_classic = SudokuJigsaw(image_path)
-        new_sudoku_classic.process_raw_image()
-        new_sudoku_classic.get_contours_f1()
-        new_sudoku_classic.iterate_through_contours_f1()
-        new_sudoku_classic.extract()
-        new_sudoku_classic.save_to_txt(output_path)
+        new_sudoku_jigsaw = SudokuJigsaw(image_path)
+        new_sudoku_jigsaw.process_raw_image()
+        new_sudoku_jigsaw.get_contours_f1()
+        new_sudoku_jigsaw.iterate_through_contours_f1()
+        new_sudoku_jigsaw.extract()
+        new_sudoku_jigsaw.save_to_txt(output_path)
 
 if __name__ == "__main__":
     if not os.path.exists(OUTPUT_FOLDER_PATH):
@@ -485,10 +536,12 @@ if __name__ == "__main__":
 
     apply_for_all(OUTPUT_FOLDER_PATH,
                   A_INPUT_FOLDER_PATH,
-                  A_OUTPUT_NAME_PATTERN)
+                  T_OUTPUT_NAME_PATTERN)
     
-    errors = find_differences(A_EVALUATE_FOLDER_PATH, OUTPUT_FOLDER_PATH)
-    print("Au fost " + str(errors) + " imagini prezise gresit")
+    # errors = find_differences(A_EVALUATE_FOLDER_PATH,
+    #                           OUTPUT_FOLDER_PATH,
+    #                           T_OUTPUT_NAME_PATTERN)
+    # print("There was " + str(errors) + " wrong files")
 
    
     
