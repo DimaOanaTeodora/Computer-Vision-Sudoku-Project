@@ -19,12 +19,13 @@ output: the output files are in ```Dima_Oana_341/clasic/01_predicted.txt```
 
 -----> if you need to change take a look to the path constants:
 ```
-A_INPUT_FOLDER_PATH =  "input folder path"
+A_INPUT_FOLDER_PATH = "input folder path for train"
+T_INPUT_FOLDER_PATH = "input folder for test"
  
 [...]
  
 apply_for_all(OUTPUT_FOLDER_PATH,
-              A_INPUT_FOLDER_PATH,
+              A_INPUT_FOLDER_PATH, 
               T_OUTPUT_NAME_PATTERN) # for _preticted.txt
 ```
 
@@ -38,6 +39,7 @@ output: the output files are in ```Dima_Oana_341/jigsaw/01_predicted.txt```
 -----> if you need to change take a look to the path constants:
 ```
 A_INPUT_FOLDER_PATH =  "input folder path"
+T_INPUT_FOLDER_PATH = "input folder for test"
  
 [...]
  
