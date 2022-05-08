@@ -1,5 +1,16 @@
 # :eye_speech_bubble: Computer Vision Sudoku Project 
-:snake:	```python 3.8.10 ``` :snake:	
+
+Computer vision project (third year uni course)
+
+Check the documentation [here](https://github.com/DimaOanaTeodora/Sudoku-recognition/blob/main/Documentatie.pdf)
+
+:snake:	```python 3.8.10 ```
+
+<p align="center">
+<img src="https://user-images.githubusercontent.com/61749814/167293534-b555b97a-a8fa-4dcc-bb43-f41ccd0f32dd.png" width="230" height="300" />
+ <img src="https://user-images.githubusercontent.com/61749814/167293543-f1a5effd-7323-4c75-b223-0380bf60045e.png" width="270" height="300" />
+</p>
+
 ## Librarii utilizate
 ```
 opencv-python==4.5.4.60
